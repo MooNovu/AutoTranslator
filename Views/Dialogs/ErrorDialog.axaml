@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:vm="using:AutoTranslator.ViewModels.Pages"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="AutoTranslator.ErrorDialog"
+        x:DataType="vm:ErrorDialogViewModel"
+        Width="400"
+        Height="200"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Title="ErrorDialog">
+
+        <StackPanel Margin="20" Spacing="15">
+
+        <TextBlock Text="{Binding TitleText}"
+                   FontSize="16"
+                   FontWeight="Bold"/>
+
+        <TextBlock Text="{Binding Message}"
+                   TextWrapping="Wrap"/>
+
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="10">
+
+            <Button Content="OK"
+                    Command="{Binding OkCommand}"/>
+
+            <Button Content="Повторить"
+                    Command="{Binding RetryCommand}"
+                    IsVisible="{Binding CanRetry}"/>
+
+        </StackPanel>
+
+    </StackPanel>
+</Window>

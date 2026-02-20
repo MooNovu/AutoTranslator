@@ -1,0 +1,151 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:converters="using:AutoTranslator.Models.Enums"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AutoTranslator.ViewModels.Pages"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:loc="clr-namespace:AutoTranslator.Services.Static"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+        x:Class="AutoTranslator.Views.Pages.SettingsView"
+        x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="20" Margin="30">
+
+        <TextBlock Text="{loc:Loc Settings}"
+                   FontSize="22"
+                   FontWeight="Bold"/>
+
+        <!-- Язык -->
+    <TextBlock Text="{loc:Loc Interface_Language}" FontWeight="Bold"/>
+    <ComboBox ItemsSource="{Binding AvailableLanguages}"
+              SelectedItem="{Binding InterfaceLanguage}">
+        <ComboBox.Resources>
+            <converters:LanguageDisplayConverter x:Key="LanguageDisplayConverter"/>
+        </ComboBox.Resources>
+        <ComboBox.ItemTemplate>
+            <DataTemplate>
+                <TextBlock Text="{Binding Converter={StaticResource LanguageDisplayConverter}}" />
+            </DataTemplate>
+        </ComboBox.ItemTemplate>
+    
+    </ComboBox>
+
+        <!-- Папка -->
+        <StackPanel Spacing="5">
+            <TextBlock Text="{loc:Loc Program_Folder}"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBox Text="{Binding DefaultProjectsFolder}"/>
+                <Button HorizontalAlignment="Right" Content="..."
+                        Command="{Binding SelectProjectsFolderCommand}"
+                        Width="40"/>
+            </Grid>
+        </StackPanel>
+
+        <TextBlock Text="{loc:Loc Ocr}" FontWeight="Bold"/>
+
+        <ComboBox ItemsSource="{Binding AvailableOcrProviders}"
+                  SelectedItem="{Binding OcrProvider}"/>
+
+        <StackPanel IsVisible="{Binding IsHttpOcrSelected}" Spacing="5">
+            <TextBox Text="{Binding OcrApiUrl}" Watermark="{loc:Loc Ocr_Api_Url}"/>
+            <TextBox Text="{Binding OcrApiKey}" Watermark="{loc:Loc Ocr_Api_Key}"/>
+        </StackPanel>
+
+        <!-- Local OCR -->
+        <StackPanel IsVisible="{Binding IsLocalOcrSelected}" Spacing="5">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBox Text="{Binding LocalOcrModelPath}" 
+                         Watermark="{loc:Loc Local_Ocr_Model_Path}"/>
+                <Button HorizontalAlignment="Right" Content="..."
+                        Command="{Binding SelectOcrModelPathCommand}"
+                        Width="40"/>
+            </Grid>
+        </StackPanel>
+
+
+
+        <TextBlock Text="{loc:Loc Llm}" FontWeight="Bold"/>
+
+        <ComboBox ItemsSource="{Binding AvailableLlmProviders}"
+                  SelectedItem="{Binding LlmProvider}"/>
+
+        <StackPanel Spacing="5" IsVisible="{Binding IsOllamaSelected}">
+            <TextBox Text="{Binding OllamaEndpoint}" Watermark="{loc:Loc Ollama_Endpoint}"/>
+            <ComboBox ItemsSource="{Binding OllamaModels}"
+                  SelectedItem="{Binding OllamaModel}"
+                  IsVisible="{Binding IsOllamaSelected}"/>
+        </StackPanel>
+        <StackPanel Spacing="5" IsVisible="{Binding IsOnlineSelected}">
+            <TextBox Text="{Binding Endpoint}" Watermark="{loc:Loc Llm_Api_Endpoint}"/>
+            <TextBox Text="{Binding ApiKey}" Watermark="{loc:Loc Llm_Api_Key}"/>
+            <TextBox Text="{Binding OnlineModel}" Watermark="{loc:Loc LLm_Online_Model}"/>
+        </StackPanel>
+
+
+        <StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+        
+                <TextBlock Grid.Column="0" 
+                           Text="{loc:Loc Temperature}" 
+                           FontWeight="Bold" 
+                           VerticalAlignment="Center"/>
+        
+                <TextBlock Grid.Column="1" 
+                           Text="{Binding Temperature, StringFormat='{}{0:F1}'}" 
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource SystemAccentColor}"
+                           Margin="10,0,0,0"
+                           VerticalAlignment="Center"/>
+            </Grid>
+    
+            <Slider Minimum="0" Maximum="1" 
+                    TickFrequency="0.1"
+                    IsSnapToTickEnabled="True"
+                    Value="{Binding Temperature}"
+                    Margin="0,5,0,0"/>
+    
+            <!-- Подписи минимального и максимального значения -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+        
+                <TextBlock Grid.Column="0" 
+                           Text="{loc:Loc Temperature_Slider_0}" 
+                           FontSize="10" 
+                           Foreground="#666666"/>
+        
+                <TextBlock Grid.Column="2" 
+                           Text="{loc:Loc Temperature_Slider_1}" 
+                           FontSize="10" 
+                           Foreground="#666666"
+                           HorizontalAlignment="Right"/>
+            </Grid>
+        </StackPanel>
+
+        <TextBlock Text="{loc:Loc Max_Tokens}" FontWeight="Bold"/>
+        <TextBox Text="{Binding MaxTokens}"/>
+
+        <!-- Кнопки -->
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="10"
+                    Margin="0,20,0,0">
+
+            <Button Content="{loc:Loc Back}"
+                    Command="{Binding BackCommand}"/>
+
+            <Button Content="{loc:Loc Save}"
+                    Command="{Binding SaveSettingsCommand}"/>
+        </StackPanel>
+
+    </StackPanel>
+    </ScrollViewer>
+</UserControl>

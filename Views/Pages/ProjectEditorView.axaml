@@ -1,0 +1,173 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AutoTranslator.ViewModels.Pages"
+        xmlns:loc="clr-namespace:AutoTranslator.Services.Static"
+        x:Class="AutoTranslator.ProjectEditorView"
+        x:DataType="vm:ProjectEditorViewModel"
+        Width="1200"
+        Height="700"
+        Icon="/Assets/AppIcon.ico"
+        Title="{Binding Project.Name}">
+
+    <Grid ColumnDefinitions="250,*,250"
+          RowDefinitions="*,Auto">
+
+        <!-- Главы -->
+        <Border Background="#F5F5F5" Padding="10">
+            <StackPanel>
+                <TextBlock Text="{loc:Loc Chapters}"
+                           FontWeight="Bold"
+                           Margin="0,0,0,10"/>
+
+                <Button Content="{loc:Loc Create_Chapter}"
+                            Command="{Binding CreateChapterCommand}"
+                            Margin="0,10,0,0"/>                
+                <Button Content="{loc:Loc Delete_Chapter}"
+                            Command="{Binding DeleteChapterCommand}"
+                            Margin="0,10,0,0"/>
+
+                <ListBox ItemsSource="{Binding Chapters}"
+                         SelectedItem="{Binding SelectedChapter}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayName}" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+        </Border>
+        <!-- Превью -->
+        <Border Grid.Column="1"
+                Background="#333">
+            <Grid>
+
+
+                <Image Source="{Binding CurrentImage}"
+                       Stretch="Uniform"/>
+
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Top"
+                            Spacing="10"
+                            Margin="0,10">
+
+                    <Button Content="{loc:Loc Original}"
+                            Command="{Binding ShowOriginalCommand}"/>
+
+                    <Button Content="{loc:Loc Cleaned}"
+                            Command="{Binding ShowCleanedCommand}"/>
+
+                    <Button Content="{loc:Loc Completed}"
+                            Command="{Binding ShowDoneCommand}"/>
+
+                </StackPanel>
+                <TextBlock Text="{loc:Loc Select_Page}"
+                           IsVisible="{Binding CurrentImage, 
+                           Converter={x:Static ObjectConverters.IsNull}}"
+                           Foreground="#999"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Страницы -->
+        <Border Grid.Column="2"
+        Background="#F5F5F5"
+        Padding="10">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
+
+
+        <ScrollViewer Grid.Row="1">
+            <ListBox Grid.Row="1"
+         ItemsSource="{Binding Pages}"
+         SelectedItem="{Binding SelectedPage}"
+         Background="Transparent"
+         BorderThickness="0">
+
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+
+                        <Border Margin="0,0,0,10"
+                                Background="#EEE"
+                                Padding="5"
+                                CornerRadius="6">
+
+                            <Grid ColumnDefinitions="*,*">
+
+                                <!-- Оригинал -->
+                                <Border Grid.Column="0">
+                                    <Image Source="{Binding OriginalImage}"
+                                           Stretch="Uniform"/>
+                                </Border>
+
+                                <!-- Перевод -->
+                                <Border Grid.Column="1"
+                                        IsVisible="{Binding IsTranslated}">
+                                    <Image Source="{Binding TranslatedImage}"
+                                           Stretch="Uniform"/>
+                                </Border>
+
+                            </Grid>
+
+                        </Border>
+
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </ScrollViewer>
+        
+        <TextBlock Text="{loc:Loc Pages}"
+                   FontWeight="Bold"
+                   Margin="0,0,0,10"/>
+
+        <Button Content="{loc:Loc Translate_Page}"
+        Command="{Binding TranslatePageCommand}"
+        Margin="0,20,0,0"/>
+
+        <!-- Button Grid.Row="2"
+                Content="Отметить как переведённую"
+                Command="{Binding MarkAsTranslatedCommand}"
+                Margin="0,10,0,10"/ -->
+
+        <!-- Drop Zone -->
+        <Border Grid.Row="3"
+                Background="#DDD"
+                Height="80"
+                CornerRadius="6"
+                DragDrop.AllowDrop="true"
+                DragDrop.Drop="OnPageDrop"
+                DragDrop.DragOver="OnPageDragOver">
+
+            <TextBlock Text="{loc:Loc Drop_Image}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#666"/>
+        </Border>
+
+    </Grid>
+
+</Border>
+
+        <Border Grid.Row="1"
+                Grid.Column="1"
+            Background="#222"
+            Padding="10"
+            IsVisible="{Binding IsTranslating}">
+
+            <StackPanel Spacing="5">
+
+                <TextBlock Text="{Binding TranslationStatus}"
+                           Foreground="White"/>
+
+                <ProgressBar Minimum="0"
+                             Maximum="100"
+                             Value="{Binding TranslationProgress}"/>
+
+            </StackPanel>
+
+        </Border>
+
+    </Grid>
+
+</Window>
