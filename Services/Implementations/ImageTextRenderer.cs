@@ -1,20 +1,21 @@
 ﻿using AutoTranslator.Models;
 using AutoTranslator.Services.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
+using SixLabors.Fonts;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-using System.Drawing.Text;
 using System.IO;
+using System.Linq;
 
 namespace AutoTranslator.Services.Implementations;
 
 public class ImageTextRenderer : IImageTextRenderer
 {
-    private readonly PrivateFontCollection _fontCollection = new();
-    private readonly FontFamily _fontFamily;
+    private readonly FontCollection _fontCollection = new();
+
     public ImageTextRenderer(IServiceProvider sp)
     {
         ISettingsService settings = sp.GetRequiredService<ISettingsService>();
@@ -27,8 +28,7 @@ public class ImageTextRenderer : IImageTextRenderer
         if (!File.Exists(fontPath))
             throw new FileNotFoundException("Font not found", fontPath);
 
-        _fontCollection.AddFontFile(fontPath);
-        _fontFamily = _fontCollection.Families[0];
+        _fontCollection.Add(fontPath);
     }
 
     public void DrawTextBlocks(
@@ -36,76 +36,80 @@ public class ImageTextRenderer : IImageTextRenderer
         string outputPath,
         List<MergedBlock> blocks)
     {
-        using var bitmap = new Bitmap(imagePath);
-        using var graphics = Graphics.FromImage(bitmap);
+        using var image = Image.Load(imagePath);
 
-        graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+        image.Mutate(ctx => {
+            foreach (var block in blocks)
+            {
+                DrawTextInRectangle(ctx, block.Text, block.Bounds);
+            }
+        });
 
-        foreach (var block in blocks)
-        {
-            DrawTextInRectangle(graphics, block.Text, block.Bounds);
-        }
-
-        bitmap.Save(outputPath, ImageFormat.Png);
+        image.SaveAsPng(outputPath);
     }
 
     private void DrawTextInRectangle(
-        Graphics graphics,
+        IImageProcessingContext image,
         string text,
-        Rectangle rect)
+        System.Drawing.Rectangle bounds)
     {
         if (string.IsNullOrWhiteSpace(text))
             return;
 
-        float fontSize = rect.Height;
-        SizeF textSize;
+        var rect = new Rectangle(bounds.X, bounds.Y, bounds.Width, bounds.Height);
 
+        float fontSize = rect.Height;
+        RichTextOptions textOptions;
+        Font font;
+        FontFamily fallbackFont = SystemFonts.Get("Arial");
+        FontFamily actualFontFamily;
+        try
+        {
+            actualFontFamily = _fontCollection.Families.First();
+        }
+        catch (System.Exception)
+        {
+            actualFontFamily = fallbackFont;
+        }
+
+        FontRectangle textSize;
         do
         {
-            fontSize -= 2f;
+            fontSize -= 1f;
 
-            using var font = new Font(
-                _fontFamily,
-                fontSize,
-                FontStyle.Bold,
-                GraphicsUnit.Pixel);
+            font = new Font(actualFontFamily, fontSize, FontStyle.Bold);
 
-            textSize = graphics.MeasureString(
-                text,
-                font,
-                rect.Width);
+            textOptions = new RichTextOptions(font)
+            {
+                WrappingLength = rect.Width,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+                WordBreaking = WordBreaking.Standard
+            };
 
-        } while ((textSize.Height > rect.Height ||
+            textSize = TextMeasurer.MeasureSize(text, textOptions);
+        } 
+        while ((textSize.Height > rect.Height ||
                   textSize.Width > rect.Width) &&
                   fontSize > 6);
 
-        using var finalFont = new Font(
-            _fontFamily,
-            fontSize,
-            FontStyle.Bold,
-            GraphicsUnit.Pixel);
+        font = new Font(actualFontFamily, fontSize, FontStyle.Bold);
 
-        var format = new StringFormat
+        textOptions = new RichTextOptions(font)
         {
-            Alignment = StringAlignment.Center,
-            LineAlignment = StringAlignment.Center,
-            FormatFlags = StringFormatFlags.LineLimit,
-            Trimming = StringTrimming.Word
+            WrappingLength = rect.Width,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+            WordBreaking = WordBreaking.Standard,
+            LineSpacing = 1.2f,
+            Origin = new PointF(rect.X + rect.Width / 2f, rect.Y + rect.Height / 2f)
         };
 
-        // Обводка (чтобы выглядело как манга)
-        using var path = new GraphicsPath();
-        path.AddString(
-            text,
-            _fontFamily,
-            (int)FontStyle.Bold,
-            finalFont.Size,
-            rect,
-            format);
+        var color = Color.Black;
 
-        graphics.FillPath(Brushes.Black, path);
-        graphics.DrawPath(Pens.Black, path);
+        image.DrawText(textOptions, text, color);
     }
 }
 
