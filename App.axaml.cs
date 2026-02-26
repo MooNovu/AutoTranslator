@@ -1,18 +1,21 @@
+using AutoTranslator.Services.Http;
+using AutoTranslator.Services.Implementations;
+using AutoTranslator.Services.Interfaces;
+using AutoTranslator.Services.Llm;
+using AutoTranslator.Services.Ocr;
+using AutoTranslator.Services.Static;
+using AutoTranslator.ViewModels.Pages;
+using AutoTranslator.Views.Pages;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
-using System.Linq;
 using Avalonia.Markup.Xaml;
-using AutoTranslator.Views.Pages;
-using AutoTranslator.ViewModels.Pages;
-using System;
 using Microsoft.Extensions.DependencyInjection;
-using AutoTranslator.Services.Interfaces;
-using AutoTranslator.Services.Static;
-using AutoTranslator.Services.Implementations;
-using AutoTranslator.Services.Llm;
-using AutoTranslator.Services.Ocr;
+using System;
+using System.Linq;
 using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace AutoTranslator;
 
@@ -33,6 +36,9 @@ public partial class App : Application
         var services = ConfigureServices();
 
         _serviceProvider = services.BuildServiceProvider();
+
+        AsyncHelper.RunSync(() => InitializeAsync(_serviceProvider));
+
         Services = _serviceProvider;
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -62,10 +68,34 @@ public partial class App : Application
             BindingPlugins.DataValidators.Remove(plugin);
         }
     }
+    private async Task InitializeAsync(IServiceProvider serviceProvider)
+    {
+        await serviceProvider.GetRequiredService<ISettingsService>().LoadAsync();
+
+        var settings = serviceProvider.GetRequiredService<ISettingsService>().Settings;
+        serviceProvider.GetRequiredService<ILocalizationService>().SetLanguage(settings.Localizations.Get(settings.InterfaceLanguage));
+    }
 
     private static ServiceCollection ConfigureServices()
     {
         ServiceCollection services = new();
+
+        services.AddHttpClient();
+
+        services.AddHttpClient("OcrClient", client =>
+        {
+            client.DefaultRequestHeaders.Add("User-Agent", "AutoTranslator/1.0");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        services.AddHttpClient("LlmClient", client =>
+        {
+            client.DefaultRequestHeaders.Add("User-Agent", "AutoTranslator/1.0");
+            client.Timeout = TimeSpan.FromSeconds(60);
+        })
+            .AddPolicyHandler(HttpClientPolicies.GetRetryPolicy())
+            .AddPolicyHandler(HttpClientPolicies.GetTimeoutPolicy());
+
         // Регистрация ViewModels
         services.AddSingleton<MainViewModel>();
         services.AddTransient<ProjectSelectionViewModel>();
@@ -95,7 +125,6 @@ public partial class App : Application
         services.AddSingleton<ILocalizationService, LocalizationService>();
 
         services.AddTransient<CreateProjectDialog>();
-        services.AddSingleton<HttpClient>();
 
         services.AddSingleton<IErrorDialogService, ErrorDialogService>();
         services.AddTransient<ErrorDialog>();

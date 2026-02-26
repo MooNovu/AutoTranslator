@@ -28,21 +28,9 @@ public partial class MainViewModel : ViewModelBase
     {
         _windowService = serviceProvider.GetRequiredService<IWindowService>();
 
-        IsBusy = true;
-        _ = InitializeAsync(serviceProvider);
-
-        Title = "AutoTranslotr";
+        Title = "AutoTranslotor";
 
         NavigateTo<ProjectSelectionViewModel>();
-    }
-    private async Task InitializeAsync(IServiceProvider serviceProvider)
-    {
-        await serviceProvider.GetRequiredService<ISettingsService>().LoadAsync();
-
-        var settings = serviceProvider.GetRequiredService<ISettingsService>().Settings;
-        serviceProvider.GetRequiredService<ILocalizationService>().SetLanguage(settings.Localizations.Get(settings.InterfaceLanguage));
-
-        IsBusy = false;
     }
 
     [RelayCommand]

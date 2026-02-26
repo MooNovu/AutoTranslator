@@ -1,4 +1,5 @@
 ﻿using AutoTranslator.Models.DTO;
+using AutoTranslator.Services.Exception;
 using AutoTranslator.Services.Interfaces;
 using AutoTranslator.Services.Static;
 using System.Net.Http;
@@ -23,34 +24,41 @@ public class OllamaLlmService(
 
     public async Task<LlmResponse> TranslateAsync(LlmRequest request)
     {
-        var body = new
+        try
         {
-            model = _model,
-            stream = false,
-            options = new
+            var body = new
             {
-                temperature = _temperature,
-                num_predict = _maxTokens,
-            },
-            messages = new[]
-            {
+                model = _model,
+                stream = false,
+                options = new
+                {
+                    temperature = _temperature,
+                    num_predict = _maxTokens,
+                },
+                messages = new[]
+                {
                 new { role = "system", content = request.SystemPrompt },
                 new { role = "user", content = request.UserPrompt }
             }
-        };
+            };
 
-        var url = $"{_endpoint}/api/chat";
+            var url = $"{_endpoint}/api/chat";
+            var response = await _httpClient.PostAsJsonAsync(url, body);
 
-        var response = await _httpClient.PostAsJsonAsync(url, body);
-        response.EnsureSuccessStatusCode();
+            response.EnsureSuccessStatusCode();
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+            var content = json.GetProperty("message").GetProperty("content").GetString();
 
-        var content = json
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString();
-
-        return LlmResponseParser.Parse(content ?? string.Empty);
+            return LlmResponseParser.Parse(content ?? string.Empty);
+        }
+        catch (TaskCanceledException ex)
+        {
+            throw new LlmException("Request timeout after 60 seconds", true, ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new LlmException($"HTTP error: {ex.Message}", true, ex);
+        }
     }
 }

@@ -9,11 +9,12 @@ namespace AutoTranslator.Services.Llm;
 public class LlmServiceFactory(IServiceProvider sp) : ILlmServiceFactory
 {
     private readonly ISettingsService _settings = sp.GetRequiredService<ISettingsService>();
-    private readonly HttpClient httpClient = sp.GetRequiredService<HttpClient>();
+    private readonly IHttpClientFactory _httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
 
     public ILlmService Create()
     {
         var settings = _settings.Settings.Llm;
+        var httpClient = _httpClientFactory.CreateClient("LlmClient");
 
         return settings.Provider switch
         {

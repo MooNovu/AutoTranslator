@@ -10,7 +10,7 @@ public class OcrServiceFactory(IServiceProvider sp, ISettingsService settings) :
 {
     private readonly IServiceProvider _sp = sp;
     private readonly ISettingsService _settings = settings;
-    private readonly HttpClient httpClient = sp.GetRequiredService<HttpClient>();
+    private readonly IHttpClientFactory _httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
 
     public IOcrService Create()
     {
@@ -21,7 +21,7 @@ public class OcrServiceFactory(IServiceProvider sp, ISettingsService settings) :
         return settings.Provider switch
         {
             OcrProvider.HttpApi =>
-                new HttpOcrService(httpClient, settings.ApiUrl, settings.ApiKey),
+                new HttpOcrService(_httpClientFactory.CreateClient("OcrClient"), settings.ApiUrl, settings.ApiKey),
 
             OcrProvider.TesseractLocal => throw new NotImplementedException(),
 
