@@ -1,7 +1,7 @@
 ﻿using AutoTranslator.Models;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
+using SixLabors.ImageSharp;
 using System.Linq;
 
 namespace AutoTranslator.Services.Static;

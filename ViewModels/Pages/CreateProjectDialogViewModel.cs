@@ -2,6 +2,7 @@
 using AutoTranslator.Models.DTO;
 using AutoTranslator.Models.Enums;
 using AutoTranslator.Services.Interfaces;
+using AutoTranslator.Services.Static;
 using AutoTranslator.ViewModels.Base;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -14,9 +15,10 @@ using System.Threading.Tasks;
 
 namespace AutoTranslator.ViewModels.Pages;
 
-public partial class CreateProjectDialogViewModel : ViewModelBase
+public partial class CreateProjectDialogViewModel(IServiceProvider serviceProvider) : ViewModelBase(serviceProvider)
 {
-    private readonly IProjectService _projectService;
+    private readonly IProjectService _projectService = serviceProvider.GetRequiredService<IProjectService>();
+    private readonly ILocalizationService _localizationService = serviceProvider.GetRequiredService<ILocalizationService>();
 
     public IEnumerable<Language> AvailableLanguages => Enum.GetValues<Language>();
     /// <summary>
@@ -43,12 +45,6 @@ public partial class CreateProjectDialogViewModel : ViewModelBase
     [ObservableProperty]
     private Language _selectedTargetLanguage = Language.Russian;
 
-    public CreateProjectDialogViewModel(IServiceProvider serviceProvider) : base(serviceProvider)
-    {
-        _projectService = serviceProvider.GetRequiredService<IProjectService>();
-        Title = "Создание нового проекта";
-    }
-
     /// <summary>
     /// Событие завершения диалога
     /// </summary>
@@ -59,13 +55,13 @@ public partial class CreateProjectDialogViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(ProjectName))
         {
-            ShowMessage("Введите название проекта");
+            ShowMessage(_localizationService["Error_Set_Project_Name"]);
             return;
         }
 
         if (SelectedSourceLanguage == SelectedTargetLanguage)
         {
-            ShowMessage("Исходный и целевой язык не должны совпадать");
+            ShowMessage(_localizationService["Error_Equal_Language"]);
             return;
         }
 
@@ -76,15 +72,11 @@ public partial class CreateProjectDialogViewModel : ViewModelBase
             var createDTO = new ProjectCreateDTO(ProjectName, ProjectDescription, SelectedSourceLanguage, SelectedTargetLanguage);
             var project = await _projectService.CreateProjectAsync(createDTO);
 
-            Debug.WriteLine($"Проект '{ProjectName}' успешно создан!");
-            ShowMessage($"Проект '{ProjectName}' успешно создан!");
-
             DialogCompleted?.Invoke(project);
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Ошибка при создании проекта: {ex.Message}");
-            ShowMessage($"Ошибка при создании проекта: {ex.Message}");
+            ShowMessage($"{_localizationService["Error_While_Creating_Project"]}: {ex.Message}");
         }
         finally
         {

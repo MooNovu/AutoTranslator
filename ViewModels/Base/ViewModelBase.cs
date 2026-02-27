@@ -1,7 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AutoTranslator.ViewModels.Base;
@@ -41,13 +40,24 @@ public abstract partial class ViewModelBase(IServiceProvider serviceProvider) : 
     /// </summary>
     public virtual Task OnNavigatedFromAsync() => Task.CompletedTask;
 
+    private CancellationTokenSource? _messageCancellationTokenSource;
+
     protected void ShowMessage(string message)
     {
+        _messageCancellationTokenSource?.Cancel();
+        _messageCancellationTokenSource?.Dispose();
+
+        _messageCancellationTokenSource = new CancellationTokenSource();
+        var token = _messageCancellationTokenSource.Token;
+
         StatusMessage = message;
 
-        Task.Delay(3000).ContinueWith(_ =>
+        Task.Delay(3000, token).ContinueWith(t =>
         {
-            StatusMessage = null;
-        });
+            if (t.IsCompletedSuccessfully && !token.IsCancellationRequested)
+            {
+                StatusMessage = null;
+            }
+        }, token);
     }
 }

@@ -124,6 +124,8 @@ public partial class App : Application
 
         services.AddSingleton<ILocalizationService, LocalizationService>();
 
+        services.AddSingleton<ITranslationOrchestrator, TranslationOrchestrator>();
+
         services.AddTransient<CreateProjectDialog>();
 
         services.AddSingleton<IErrorDialogService, ErrorDialogService>();

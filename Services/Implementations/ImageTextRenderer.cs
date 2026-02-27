@@ -51,14 +51,12 @@ public class ImageTextRenderer : IImageTextRenderer
     private void DrawTextInRectangle(
         IImageProcessingContext image,
         string text,
-        System.Drawing.Rectangle bounds)
+        Rectangle bounds)
     {
         if (string.IsNullOrWhiteSpace(text))
             return;
 
-        var rect = new Rectangle(bounds.X, bounds.Y, bounds.Width, bounds.Height);
-
-        float fontSize = rect.Height;
+        float fontSize = bounds.Height;
         RichTextOptions textOptions;
         Font font;
         FontFamily fallbackFont = SystemFonts.Get("Arial");
@@ -81,7 +79,7 @@ public class ImageTextRenderer : IImageTextRenderer
 
             textOptions = new RichTextOptions(font)
             {
-                WrappingLength = rect.Width,
+                WrappingLength = bounds.Width,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextAlignment = TextAlignment.Center,
@@ -90,21 +88,21 @@ public class ImageTextRenderer : IImageTextRenderer
 
             textSize = TextMeasurer.MeasureSize(text, textOptions);
         } 
-        while ((textSize.Height > rect.Height ||
-                  textSize.Width > rect.Width) &&
+        while ((textSize.Height > bounds.Height ||
+                  textSize.Width > bounds.Width) &&
                   fontSize > 6);
 
         font = new Font(actualFontFamily, fontSize, FontStyle.Bold);
 
         textOptions = new RichTextOptions(font)
         {
-            WrappingLength = rect.Width,
+            WrappingLength = bounds.Width,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             TextAlignment = TextAlignment.Center,
             WordBreaking = WordBreaking.Standard,
             LineSpacing = 1.2f,
-            Origin = new PointF(rect.X + rect.Width / 2f, rect.Y + rect.Height / 2f)
+            Origin = new PointF(bounds.X + bounds.Width / 2f, bounds.Y + bounds.Height / 2f)
         };
 
         var color = Color.Black;

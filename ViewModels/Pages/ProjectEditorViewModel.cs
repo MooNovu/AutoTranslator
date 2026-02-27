@@ -1,5 +1,4 @@
 ﻿using AutoTranslator.Models;
-using AutoTranslator.Models.DTO;
 using AutoTranslator.Services.Exception;
 using AutoTranslator.Services.Implementations;
 using AutoTranslator.Services.Interfaces;
@@ -13,13 +12,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Transactions;
 
 namespace AutoTranslator.ViewModels.Pages;
 public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase(sp)
@@ -27,11 +23,11 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
     private readonly IChapterService _chapterService = sp.GetRequiredService<IChapterService>();
     private readonly IPageService _pageService = sp.GetRequiredService<IPageService>();
     private readonly ITextEraseService _textEraseService = sp.GetRequiredService<ITextEraseService>();
+    private readonly ITranslationOrchestrator _translationOrchestrator = sp.GetRequiredService<ITranslationOrchestrator>();
 
-    private readonly IOcrServiceFactory _ocrFactory = sp.GetRequiredService<IOcrServiceFactory>();
-    private readonly ILlmServiceFactory _llmFactory = sp.GetRequiredService<ILlmServiceFactory>();
     private readonly IImageTextRenderer _imageTextRenderer = sp.GetRequiredService<IImageTextRenderer>();
     private readonly IErrorDialogService _errorDialogService = sp.GetRequiredService<IErrorDialogService>();
+    private readonly ILocalizationService _localizationService = sp.GetRequiredService<ILocalizationService>();
 
     [ObservableProperty]
     private bool _isTranslating;
@@ -83,6 +79,7 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
     }
     private void UpdateCurrentImage()
     {
+        CurrentImage?.Dispose();
         if (SelectedPage == null || SelectedChapter == null)
         {
             CurrentImage = null;
@@ -111,6 +108,7 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
 
             _ => null
         };
+
         if (path != null && File.Exists(path))
             CurrentImage = new Bitmap(path);
         else
@@ -136,7 +134,7 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
         catch (Exception ex)
         {
             await _errorDialogService.ShowAsync(
-                "Неизвестная ошибка",
+                _localizationService["Error_Unknown_Message"],
                 ex.Message,
                 false);
         }
@@ -157,108 +155,58 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
         TranslationProgress = 0;
         TranslationStatus = string.Empty;
     }
-    private void RenderResult(string cleanedPath, string originalPath, List<MergedBlock> translatedBlocks)
+    private void RenderResult(int chapterNumber, int pageNumber)
     {
-        if (SelectedChapter == null || SelectedPage == null)
-            return;
+        if (SelectedChapter == null || SelectedChapter.Number != chapterNumber) return;
 
-        var donePath = Path.Combine(
-            Path.GetDirectoryName(originalPath)!,
-            ProjectHelper.FromOrigToDone(Path.GetFileName(originalPath)));
+        UpdatePage(chapterNumber, pageNumber);
 
-        _imageTextRenderer.DrawTextBlocks(
-            cleanedPath,
-            donePath,
-            translatedBlocks);
-
-        // Помечаем страницу как переведённую
-        //_pageService.MarkTranslatedAsync(
-        //    Project!,
-        //    SelectedChapter.Number,
-        //    SelectedPage.Number,
-        //    donePath).Wait();
-
-        SelectedPage.IsTranslated = true;
-
-        int? selectedPageNumber = SelectedPage?.Number;
-
-        LoadPages(SelectedChapter.Number);
-        // Переключаемся на Done
-        if (selectedPageNumber.HasValue)
-        {
-            SelectedPage = Pages.FirstOrDefault(p => p.Number == selectedPageNumber.Value);
-        }
+        if (SelectedPage?.Number != pageNumber) return;
 
         CurrentViewMode = PageStatus.Done;
+
+        SelectedPage = Pages.FirstOrDefault(p => p.Number == pageNumber);
+
         UpdateCurrentImage();
     }
 
     private async Task ExecuteTranslationAsync()
     {
-        IOcrService ocrService = _ocrFactory.Create();
-        ILlmService llmService = _llmFactory.Create();
+        if (!CanTranslate()) return;
 
-        var imagePath = _pageService.GetPageImagePath(Project!, SelectedChapter!.Number, SelectedPage!.Number, PageStatus.Original);
+        int TranslatingChapterNumber = SelectedChapter!.Number;
+        int TranslatingPageNumber = SelectedPage!.Number;
+
+        var imagePath = _pageService.GetPageImagePath(Project!, TranslatingChapterNumber, TranslatingPageNumber, PageStatus.Original);
 
         if (imagePath == null) return;
-        TranslationStatus = "OCRing";
-        TranslationProgress = 10;
-        var blocks = await RunOcrAsync(ocrService, imagePath);
 
-        TranslationStatus = "Cleaning";
+        TranslationStatus = _localizationService["Translation_Status_Recognizing_Text"];
+        TranslationProgress = 10;
+        var blocks = await _translationOrchestrator.RunOcrAsync(imagePath);
+
+        TranslationStatus = _localizationService["Translation_Status_Erasing_Text"];
         TranslationProgress = 30;
         var cleanedPath = await _textEraseService.EraseTextAsync(imagePath, blocks);
 
-        TranslationStatus = "LLM translating";
+        TranslationStatus = _localizationService["Translation_Status_Translating_Text"];
         TranslationProgress = 70;
-        var translatedBlocks = await TranslateBlocksWithRetryAsync(
-            llmService,
-            blocks);
+        var translatedBlocks = await _translationOrchestrator.
+            TranslateBlocksAsync(blocks, Project!.SourceLanguage, Project!.TargetLanguage);
 
-        RenderResult(cleanedPath, imagePath, translatedBlocks);
+        TranslationStatus = _localizationService["Translation_Status_Saving_Result"];
+        TranslationProgress = 95;
+        var donePath = Path.Combine(
+            Path.GetDirectoryName(imagePath)!,
+            ProjectHelper.FromOrigToDone(Path.GetFileName(imagePath)));
 
-        TranslationStatus = "Done";
-    }
-    private async Task<List<MergedBlock>> TranslateBlocksWithRetryAsync(ILlmService llmService, List<MergedBlock> blocks)
-    {
-        while (true)
-        {
-            try
-            {
-                var request = new LlmRequest
-                {
-                    SystemPrompt = ProjectHelper.SystemPrompt(Project!.SourceLanguage, Project!.TargetLanguage),
-                    UserPrompt = ProjectHelper.UserPrompt(blocks)
-                };
+        _imageTextRenderer.DrawTextBlocks(cleanedPath, donePath, translatedBlocks);
 
-                LlmResponse response = await llmService.TranslateAsync(request);
+        await Task.Delay(1000);
 
-                if (response.TranslatedBlocks.Count < blocks.Count)
-                    throw new LlmException("LLM вернул неполный перевод.", true);
+        RenderResult(TranslatingChapterNumber, TranslatingPageNumber);
 
-                return MapTranslatedBlocks(blocks, response.TranslatedBlocks);
-            }
-            catch (LlmException ex)
-            {
-                bool retry = await _errorDialogService.ShowAsync(
-                    "Ошибка перевода",
-                    ex.Message,
-                    ex.CanRetry);
-
-                if (!retry)
-                    throw;
-            }
-        }
-    }
-    private async Task<List<MergedBlock>> RunOcrAsync(IOcrService ocrService, string imagePath)
-    {
-        var words = await ocrService.RecognizeAsync(imagePath);
-
-        var realWords = words
-            .Where(w => !string.IsNullOrWhiteSpace(w.Text))
-            .ToList();
-
-        return OcrGrouping.MergeTextBlocks(realWords);
+        TranslationStatus = _localizationService["Translation_Status_Completed"];
     }
     private async Task HandleServiceExceptionAsync(ServiceException ex)
     {
@@ -269,22 +217,6 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
 
         if (retry)
             await TranslatePageAsync();
-    }
-    private List<MergedBlock> MapTranslatedBlocks(List<MergedBlock> blocks, List<string> translations)
-    {
-        List<MergedBlock> result = [];
-        for (int i = 0; i < blocks.Count; i++) 
-        { 
-            MergedBlock b = new() 
-            { 
-                Text = translations[i], 
-                Bounds = blocks[i].Bounds, 
-                Confidence = blocks[i].Confidence, 
-                OriginalBlocks = blocks[i].OriginalBlocks, 
-            };
-            result.Add(b); 
-        }
-        return result;
     }
 
     public void LoadProject(Project project)
@@ -368,15 +300,15 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
 
     private void LoadPages(int chapterNumber)
     {
-        Pages.Clear();
+        ClearPages();
 
         var pages = _pageService.GetPages(Project!, chapterNumber);
 
         foreach (var p in pages)
         {
-            var info = new PageInfo(p.Number, p.IsTranslated);
+            PageInfo info = new(p.Number, p.IsTranslated);
 
-            var originalPath = _pageService.GetPageImagePath(
+            string? originalPath = _pageService.GetPageImagePath(
                 Project!, chapterNumber, p.Number, PageStatus.Original);
 
             if (originalPath != null && File.Exists(originalPath))
@@ -384,7 +316,7 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
 
             if (p.IsTranslated)
             {
-                var translatedPath = _pageService.GetPageImagePath(
+                string? translatedPath = _pageService.GetPageImagePath(
                     Project!, chapterNumber, p.Number, PageStatus.Done);
 
                 if (translatedPath != null && File.Exists(translatedPath))
@@ -394,7 +326,31 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
             Pages.Add(info);
         }
     }
+    private void UpdatePage(int chapterNumber, int pageNumber)
+    {
+        PageInfo? pageToUpdate = Pages.FirstOrDefault(p => p.Number == pageNumber);
 
+        if (pageToUpdate == null) return;
+
+
+        string? translatedPath = _pageService.GetPageImagePath(
+            Project!, chapterNumber, pageToUpdate.Number, PageStatus.Done);
+
+        if (translatedPath != null && File.Exists(translatedPath))
+        {
+            pageToUpdate.TranslatedImage = new Bitmap(translatedPath);
+            pageToUpdate.IsTranslated = true;
+        }
+    }
+    private void ClearPages()
+    {
+        foreach (var page in Pages)
+        {
+            page.OriginalImage?.Dispose();
+            page.TranslatedImage?.Dispose();
+        }
+        Pages.Clear();
+    }
     partial void OnSelectedPageChanged(PageInfo? value)
     {
         UpdateCurrentImage();
@@ -404,21 +360,6 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
         if (value == null) return; 
         LoadPages(value.Number); 
     }
-
-    //[RelayCommand]
-    //private async Task MarkAsTranslatedAsync()
-    //{
-    //    if (SelectedChapter == null || SelectedPage == null)
-    //        return;
-
-    //    await _pageService.MarkTranslatedAsync(
-    //        Project!,
-    //        SelectedChapter.Number,
-    //        SelectedPage.Number, null);
-
-    //    SelectedPage.IsTranslated = true;
-    //}
-
     [RelayCommand]
     private void Refresh()
     {

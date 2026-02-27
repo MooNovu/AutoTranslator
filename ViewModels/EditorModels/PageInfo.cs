@@ -10,8 +10,12 @@ public partial class PageInfo : ObservableObject
     [ObservableProperty]
     private bool _isTranslated;
 
-    public Bitmap? OriginalImage { get; set; }
-    public Bitmap? TranslatedImage { get; set; }
+
+    [ObservableProperty]
+    private Bitmap? _originalImage;
+
+    [ObservableProperty]
+    private Bitmap? _translatedImage;
 
     public string DisplayName =>
         $"{Number:D3} {(IsTranslated ? "✓" : "⏳")}";
