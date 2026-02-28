@@ -11,6 +11,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Serilog;
 using System;
 using System.Linq;
 using System.Net.Http;
@@ -96,7 +98,12 @@ public partial class App : Application
             .AddPolicyHandler(HttpClientPolicies.GetRetryPolicy())
             .AddPolicyHandler(HttpClientPolicies.GetTimeoutPolicy());
 
-        // Регистрация ViewModels
+        services.AddLogging(builder =>
+        {
+            builder.ClearProviders();
+            builder.AddSerilog(dispose: true);
+        });
+
         services.AddSingleton<MainViewModel>();
         services.AddTransient<ProjectSelectionViewModel>();
         services.AddTransient<ProjectEditorViewModel>();
@@ -114,7 +121,6 @@ public partial class App : Application
         services.AddSingleton<IFolderPicker, FolderPickerService>();
 
 
-        //Заменить на фабрики
         services.AddSingleton<IOcrServiceFactory, OcrServiceFactory>();
         services.AddSingleton<ILlmServiceFactory, LlmServiceFactory>();
         services.AddSingleton<IImageTextRenderer, ImageTextRenderer>();

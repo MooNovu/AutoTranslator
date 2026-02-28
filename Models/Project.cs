@@ -1,6 +1,5 @@
 ﻿using AutoTranslator.Models.Enums;
 using System;
-using System.Collections.Generic;
 
 namespace AutoTranslator.Models;
 
@@ -11,6 +10,7 @@ public class Project
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? FontFileName { get; set; }
     public string? Description { get; set; }
     public string? FolderPath { get; set; }
     public DateTime CreatedAt { get; set; }

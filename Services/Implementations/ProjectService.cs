@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using System.Linq;
 using AutoTranslator.Services.Interfaces;
 using AutoTranslator.Services.Static;
-using System.Diagnostics;
 
 namespace AutoTranslator.Services.Implementations;
 
@@ -35,6 +34,7 @@ public class ProjectService(ISettingsService settings, IProjectStatisticsService
         {
             Id = Guid.NewGuid(),
             Name = dto.Name,
+            FontFileName = dto.FontFileName,
             Description = dto.Description,
             FolderPath = folder,
             CreatedAt = DateTime.Now,

@@ -23,6 +23,12 @@
                 <TextBlock Text="{loc:Loc Name}"/>
                 <TextBox Text="{Binding ProjectName}"/>
             </StackPanel>
+            
+            <StackPanel>
+                <TextBlock Text="{loc:Loc Font}"/>
+                <TextBox Watermark="AnimeAce2.ttf" Text="{Binding FontFileName}"/>
+            </StackPanel>
+
 
             <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="10">
                 <ComboBox Grid.Column="0" 

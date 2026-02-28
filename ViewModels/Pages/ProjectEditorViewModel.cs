@@ -200,7 +200,7 @@ public partial class ProjectEditorViewModel(IServiceProvider sp) : ViewModelBase
             Path.GetDirectoryName(imagePath)!,
             ProjectHelper.FromOrigToDone(Path.GetFileName(imagePath)));
 
-        _imageTextRenderer.DrawTextBlocks(cleanedPath, donePath, translatedBlocks);
+        _imageTextRenderer.DrawTextBlocks(cleanedPath, donePath, translatedBlocks, Project!.FontFileName);
 
         await Task.Delay(1000);
 

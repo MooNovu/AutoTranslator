@@ -28,6 +28,12 @@ public partial class CreateProjectDialogViewModel(IServiceProvider serviceProvid
     private string _projectName = string.Empty;
 
     /// <summary>
+    /// Шрифт проекта
+    /// </summary>
+    [ObservableProperty]
+    private string _fontFileName = string.Empty;
+
+    /// <summary>
     /// Описание проекта
     /// </summary>
     [ObservableProperty]
@@ -69,7 +75,16 @@ public partial class CreateProjectDialogViewModel(IServiceProvider serviceProvid
 
         try
         {
-            var createDTO = new ProjectCreateDTO(ProjectName, ProjectDescription, SelectedSourceLanguage, SelectedTargetLanguage);
+            ProjectCreateDTO createDTO;
+            if (string.IsNullOrEmpty(FontFileName))
+            {
+                createDTO = new(ProjectName, ProjectDescription, SelectedSourceLanguage, SelectedTargetLanguage);
+            }
+            else
+            {
+                createDTO = new ProjectCreateDTO(ProjectName, ProjectDescription, SelectedSourceLanguage, SelectedTargetLanguage, FontFileName);
+            }
+             
             var project = await _projectService.CreateProjectAsync(createDTO);
 
             DialogCompleted?.Invoke(project);
